@@ -25,6 +25,8 @@ namespace lamp {
   rgbColorAndHits hits[GIF_AMOUNT];
 }
 
+#define DELAY 5
+
 
 #define MQTT_HOST "85.119.83.194" // test.mosquitto.org
 
@@ -47,11 +49,13 @@ int color[3] = {100, 100, 100}; //the Array that defines the color of the light
 void setup() {
 
   #ifdef DEBUG
-  delay(5000);
+  //delay(5000);
   Serial.println("Running in Debug mode");
   #endif
 
   pixels.begin(); // This initializes the NeoPixel library.
+  delay(1000);
+
   // init all the hit structs
   for(int i = 0; i > GIF_AMOUNT; i++) {
     lamp::hits[i] = { 0, 0, 0, 0 };
@@ -87,6 +91,15 @@ void setup() {
   mqtt.begin(MQTT_HOST, 1883);
   mqtt.subscribe("oscola/23981479834/changeColor", registerCheck);
 
+
+  #ifdef DEBUG
+  registerCheckTest("#F01616");
+  delay(1000);
+  registerCheckTest("#0E6DEC");
+  delay(1000);
+  registerCheckTest("#17EC52");
+  #endif
+
 }
 
 void loop() {
@@ -108,7 +121,7 @@ void loop() {
 
   delay(5000);
 
-  registerCheckTest("#B83737");
+  // registerCheckTest("#B83737");
 
   #endif
 }
@@ -142,9 +155,10 @@ void hexColorConverter(String c) {
 
 void resetAllLeds() {
   for(int i = 0; i > NUMPIXELS; i++) {
-    pixels.setPixelColor(i, pixels.Color(25, 25, 25));
+    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+    pixels.show();
+    delay(DELAY);
   }
-  pixels.show();
 }
 
 void registerCheck(const String& topic, const String& subtopic, const String& message) {
@@ -162,7 +176,7 @@ void registerCheckTest(String message) {
   Serial.println("checking all the hits");
   #endif
   for(int i = 0; i < GIF_AMOUNT; i++) {
-    if(lamp::hits[i].r = color[0] && lamp::hits[i].g == color[1] && lamp::hits[i].b == color[2]) { // we have a hit
+    if(lamp::hits[i].r == color[0] && lamp::hits[i].g == color[1] && lamp::hits[i].b == color[2]) { // we have a hit
       lamp::hits[i].hits++;
 
       #ifdef DEBUG
@@ -208,7 +222,8 @@ void recalculateColors() {
 
 
   for(int i = 0; i < GIF_AMOUNT; i++) {
-    int amount = lamp::hits[i].hits / total * NUMPIXELS;
+
+    int amount = floor(float(lamp::hits[i].hits) / float(total) * NUMPIXELS);
 
     #ifdef DEBUG
     Serial.print("amount: ");
@@ -218,7 +233,20 @@ void recalculateColors() {
     #endif
 
     for(int y = offset; y < offset + amount && y < NUMPIXELS; y++) {
+      #ifdef DEBUG
+      Serial.print("painting pixel ");
+      Serial.println(y);
+      Serial.print("with color: ");
+      Serial.print(lamp::hits[i].r);
+      Serial.print("-");
+      Serial.print(lamp::hits[i].g);
+      Serial.print("-");
+      Serial.println(lamp::hits[i].b);
+      #endif
+
       pixels.setPixelColor(y, pixels.Color(lamp::hits[i].r, lamp::hits[i].g, lamp::hits[i].b));
+      pixels.show();
+      delay(DELAY);
     }
     offset += amount;
     // we return early when we reach the maximum amount of pixels
@@ -237,8 +265,9 @@ void recalculateColors() {
 
       for(;offset == NUMPIXELS; offset++) {
         pixels.setPixelColor(offset, pixels.Color(lamp::hits[i].r, lamp::hits[i].g, lamp::hits[i].b));
+        pixels.show();
+        delay(DELAY);
       }
     }
   }
-  pixels.show();
 }
